@@ -18,9 +18,20 @@ struct Symbol
 end
 
 """
+index: the tape cursor
+length: Tape.arr element count
+arr: the tape itself
+"""
+mutable struct Tape
+    index::Int
+    length::Int
+    arr::Vector{Int}
+end
+
+"""
 n: states count
 m: symbols count
-table: Machine rules, dict keys are a state
+table: machine rules, dict keys are a state
 M : Turing machine
 S(M) is the number of tape shifts that M performs before stopping
 Σ(M) is the number of symbols written on the tape for M before stopping
@@ -31,17 +42,11 @@ mutable struct Machine
     table::Dict{Int, Vector{Symbol}}
     Σ::Int
     S::Int
-    
+    tape::Tape
+
     function Machine(state::Int, symbol::Int, table::Dict{Int, Vector{Symbol}})
-        return (new(state, symbol, table, 0, 0))
+        return (new(state, symbol, table, 0, 0, Tape(1, 1, [0])))
     end
-end
-
-
-mutable struct Tape
-    index::Int
-    length::Int
-    arr::Vector{Int}
 end
 
 """
@@ -65,13 +70,18 @@ function shift_tape(tape::Tape, shift::Int)
         pushfirst!(tape.arr, 0)
         tape.length += 1
         tape.index = 1
+        return
     end
     if (tape.index >= tape.length)
         push!(tape.arr, 0)
         tape.length += 1
+        return
     end
 end
 
+"""
+It returns the rule table with a human readable format
+"""
 function fancy_machine(m::Machine)
     msg = ""
 
@@ -88,12 +98,13 @@ function fancy_machine(m::Machine)
     msg
 end
 
+"""
+It simulates a Turing machine
+"""
 function simulate(m::Machine)
-    tape = Tape(1, 1, [0])
-
     while (m.state != -1)
         # Read symbol on the tape
-        read_symbol = tape.arr[tape.index]
+        read_symbol = m.tape.arr[m.tape.index]
         
         # Find next rule
         next = m.table[m.state][read_symbol + 1]
@@ -101,14 +112,14 @@ function simulate(m::Machine)
         m.symbol = next.symbol_write
         
         # Write symbol on the tape
-        tape.arr[tape.index] = m.symbol
+        m.tape.arr[m.tape.index] = m.symbol
         
         # Shift the tape
         shift = next.tape_shift
-        shift_tape(tape, shift)
+        shift_tape(m.tape, shift)
         m.S += 1
     end
-    m.Σ = count(symbol -> (symbol == 1), tape.arr)
+    m.Σ = count(symbol -> (symbol == 1), m.tape.arr)
 end
 
 """
